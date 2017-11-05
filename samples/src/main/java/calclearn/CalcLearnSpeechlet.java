@@ -37,8 +37,11 @@ public class CalcLearnSpeechlet implements Speechlet {
 
 	private static final Logger log = LoggerFactory.getLogger(CalcLearnSpeechlet.class);
 
-	private static final String COLOR_KEY = "COLOR";
-	private static final String COLOR_SLOT = "Color";
+	private static final String NAME_KEY = "NAME";
+	private static final String NAME_SLOT = "Name";
+	private static final String ANSWER_SLOT = "Answer";
+	private static final String LAST_EXERCISE = "LastExercise";
+	private static final String LAST_RESULT = "LastAnswer";
 
 	@Override
 	public void onSessionStarted(final SessionStartedRequest request, final Session session)
@@ -68,10 +71,12 @@ public class CalcLearnSpeechlet implements Speechlet {
 
 		// Note: If the session is started with an intent, no welcome message will be rendered;
 		// rather, the intent specific response will be returned.
-		if ("MyColorIsIntent".equals(intentName)) {
-			return setColorInSession(intent, session);
+		if ("MyNameIsIntent".equals(intentName)) {
+			return setNameInSession(intent, session);
 		} else if ("WhatsMyColorIntent".equals(intentName)) {
-			return getColorFromSession(intent, session);
+			return getNameFromSession(intent, session);
+		} else if ("AnswerExerciseIntent".equals(intentName)) {
+			return checkAnswer(intent, session);
 		} else {
 			throw new SpeechletException("Invalid Intent");
 		}
@@ -92,13 +97,9 @@ public class CalcLearnSpeechlet implements Speechlet {
 	 */
 	private SpeechletResponse getWelcomeResponse() {
 		// Create the welcome message.
-		String speechTextOrg
-				= "Welcome to the Alexa Skills Kit sample. Please tell me your favorite color by "
-				+ "saying, my favorite color is red";
 		String speechText
 				= "Willkommen. Bitte verrate mir doch deinen Namen";
-		String repromptTextOrg
-				= "Please tell me your favorite color by saying, my favorite color is red";
+		// Ask again, when User doesn't answer
 		String repromptText
 				= "Ich warte auf deinen Namen, oder einen Namen deiner Wahl";
 
@@ -112,31 +113,33 @@ public class CalcLearnSpeechlet implements Speechlet {
 	 * @param intent intent for the request
 	 * @return SpeechletResponse spoken and visual response the given intent
 	 */
-	private SpeechletResponse setColorInSession(final Intent intent, final Session session) {
+	private SpeechletResponse setNameInSession(final Intent intent, final Session session) {
 		// Get the slots from the intent.
 		Map<String, Slot> slots = intent.getSlots();
 
 		// Get the color slot from the list of slots.
-		Slot favoriteColorSlot = slots.get(COLOR_SLOT);
+		Slot nameSlot = slots.get(NAME_SLOT);
 		String speechText, repromptText;
 
 		// Check for favorite color and create output to user.
-		if (favoriteColorSlot != null) {
+		if (nameSlot != null) {
 			// Store the user's favorite color in the Session and create response.
-			String favoriteColor = favoriteColorSlot.getValue();
-			session.setAttribute(COLOR_KEY, favoriteColor);
+			String name = nameSlot.getValue();
+			final String excercise = "100 plus 100";
+			final int result = 200;
+			session.setAttribute(NAME_KEY, name);
+			session.setAttribute(LAST_EXERCISE, excercise);
+			session.setAttribute(LAST_RESULT, result);
 			speechText
-					= String.format("I now know that your favorite color is %s. You can ask me your "
-							+ "favorite color by saying, what's my favorite color?", favoriteColor);
+					= String.format("%s, wieviel ist %s", name, excercise);
 			repromptText
-					= "You can ask me your favorite color by saying, what's my favorite color?";
+					= String.format("Bitte sage mir was %s ist, indem du sagst: die Antwort ist ", excercise);
 
 		} else {
 			// Render an error since we don't know what the users favorite color is.
-			speechText = "I'm not sure what your favorite color is, please try again";
+			speechText = "Ich kenne deinen Namen leider nicht. Bitte sage deshalb, Mein Name ist Uwe.";
 			repromptText
-					= "I'm not sure what your favorite color is. You can tell me your favorite "
-					+ "color by saying, my favorite color is red";
+					= "Ich kenne deinen Namen leider nicht. Bitte sage deshalb, Mein Name ist Uwe.";
 		}
 
 		return getSpeechletResponse(speechText, repromptText, true);
@@ -149,16 +152,16 @@ public class CalcLearnSpeechlet implements Speechlet {
 	 * @param intent intent for the request
 	 * @return SpeechletResponse spoken and visual response for the intent
 	 */
-	private SpeechletResponse getColorFromSession(final Intent intent, final Session session) {
+	private SpeechletResponse getNameFromSession(final Intent intent, final Session session) {
 		String speechText;
 		boolean isAskResponse = false;
 
 		// Get the user's favorite color from the session.
-		String favoriteColor = (String) session.getAttribute(COLOR_KEY);
+		String favoriteColor = (String) session.getAttribute(NAME_KEY);
 
 		// Check to make sure user's favorite color is set in the session.
 		if (StringUtils.isNotEmpty(favoriteColor)) {
-			speechText = String.format("Your favorite color is %s. Goodbye.", favoriteColor);
+			speechText = String.format("Deine Name ist %s. Goodbye.", favoriteColor);
 		} else {
 			// Since the user's favorite color is not set render an error message.
 			speechText
@@ -171,11 +174,43 @@ public class CalcLearnSpeechlet implements Speechlet {
 	}
 
 	/**
+	 * Creates a {@code SpeechletResponse} for the intent and stores the
+	 * extracted color in the Session.
+	 *
+	 * @param intent intent for the request
+	 * @return SpeechletResponse spoken and visual response the given intent
+	 */
+	private SpeechletResponse checkAnswer(final Intent intent, final Session session) {
+		// Get the slots from the intent.
+		Map<String, Slot> slots = intent.getSlots();
+
+		// Get the color slot from the list of slots.
+		Slot numberSlot = slots.get(ANSWER_SLOT);
+		String speechText, repromptText;
+		final int answer = Integer.valueOf(numberSlot.getValue());
+		final int lastResult = (int) session.getAttribute(LAST_RESULT);
+		final String lastExcercise = (String) session.getAttribute(LAST_EXERCISE);
+		if (answer == lastResult) {
+			speechText
+					= String.format("Richtig. %s macht %s. Noch ein Spiel?", lastExcercise, answer);
+		} else {
+			speechText
+					= String.format("Leider falsch. %s ist leider NICHT %s."
+							+ "Die richtige Antwort ist %s", lastExcercise, answer, lastResult);
+		}
+
+		repromptText
+				= String.format("Bitte sage mir was %s ist, indem du sagst: die Antwort ist ", lastExcercise);
+		return getSpeechletResponse(speechText, repromptText, true);
+
+	}
+
+	/**
 	 * Returns a Speechlet response for a speech and reprompt text.
 	 */
 	private SpeechletResponse getSpeechletResponse(String speechText, String repromptText,
 			boolean isAskResponse) {
-		// Create the Simple card content.
+		// Create the Simple card content (for displaying devices only).
 		SimpleCard card = new SimpleCard();
 		card.setTitle("Session");
 		card.setContent(speechText);

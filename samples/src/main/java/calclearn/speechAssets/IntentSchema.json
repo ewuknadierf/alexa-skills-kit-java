@@ -1,0 +1,25 @@
+{
+  "intents": [
+    {
+      "intent": "MyNameIsIntent",
+      "slots": [
+        {
+          "name": "Name",
+          "type": "AMAZON.DE_FIRST_NAME"
+        }
+      ]
+    },
+    {
+      "intent": "AnswerExerciseIntent",
+      "slots": [
+        {
+          "name": "Answer",
+          "type": "NUMBER"
+        }
+      ]
+    },
+    {
+      "intent": "WhatsMyColorIntent"
+    }
+  ]
+}

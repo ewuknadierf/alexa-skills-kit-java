@@ -28,6 +28,9 @@ import com.amazon.speech.speechlet.SpeechletResponse;
 import com.amazon.speech.ui.PlainTextOutputSpeech;
 import com.amazon.speech.ui.Reprompt;
 import com.amazon.speech.ui.SimpleCard;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
 
 /**
  * This sample shows how to create a simple speechlet for handling intent
@@ -42,6 +45,8 @@ public class CalcLearnSpeechlet implements Speechlet {
 	private static final String ANSWER_SLOT = "Answer";
 	private static final String LAST_EXERCISE = "LastExercise";
 	private static final String LAST_RESULT = "LastAnswer";
+	private static final int MAX_RANDOM_INTEGER = 10;
+	private static final List<String> CALC_OPERATORS = Arrays.asList("+", "-");
 
 	@Override
 	public void onSessionStarted(final SessionStartedRequest request, final Session session)
@@ -56,7 +61,8 @@ public class CalcLearnSpeechlet implements Speechlet {
 			throws SpeechletException {
 		log.info("onLaunch requestId={}, sessionId={}", request.getRequestId(),
 				session.getSessionId());
-		return getWelcomeResponse();
+		//return getWelcomeResponse();
+		return askNewExcercise(session);
 	}
 
 	@Override
@@ -73,12 +79,13 @@ public class CalcLearnSpeechlet implements Speechlet {
 		// rather, the intent specific response will be returned.
 		if ("MyNameIsIntent".equals(intentName)) {
 			return setNameInSession(intent, session);
-		} else if ("WhatsMyColorIntent".equals(intentName)) {
-			return getNameFromSession(intent, session);
+//		} else if ("WhatsMyColorIntent".equals(intentName)) {
+//			return getNameFromSession(intent, session);
 		} else if ("AnswerExerciseIntent".equals(intentName)) {
 			return checkAnswer(intent, session);
 		} else {
-			throw new SpeechletException("Invalid Intent");
+			//throw new SpeechletException("Invalid Intent");
+			return askNewExcercise(session);
 		}
 	}
 
@@ -103,6 +110,33 @@ public class CalcLearnSpeechlet implements Speechlet {
 		String repromptText
 				= "Ich warte auf deinen Namen, oder einen Namen deiner Wahl";
 
+		return getSpeechletResponse(speechText, repromptText, true);
+	}
+
+	private SpeechletResponse askNewExcercise(final Session session) {
+		String speechText, repromptText, excercise;
+		final int rndNumberOne = new Random().nextInt(MAX_RANDOM_INTEGER);
+		final int rndNumberTwo = new Random().nextInt(MAX_RANDOM_INTEGER);
+		int result;
+		final Random randomizer = new Random();
+		final String rndOperator = CALC_OPERATORS.get(randomizer.nextInt(CALC_OPERATORS.size()));
+		if (rndOperator.equals("-")) {
+			if (rndNumberOne > rndNumberTwo) {
+				result = rndNumberOne - rndNumberTwo;
+				excercise = String.format("%s minus %s", rndNumberOne, rndNumberTwo);
+			} else {
+				result = rndNumberTwo - rndNumberOne;
+				excercise = String.format("%s minus %s", rndNumberTwo, rndNumberOne);
+			}
+		} else {
+			result = rndNumberOne + rndNumberTwo;
+			excercise = String.format("%s plus %s", rndNumberOne, rndNumberTwo);
+		}
+
+		session.setAttribute(LAST_EXERCISE, excercise);
+		session.setAttribute(LAST_RESULT, result);
+		speechText = String.format("Wieviel ist %s", excercise);
+		repromptText = String.format("Ich wiederhole noch einmal die Aufgabe: %s", speechText);
 		return getSpeechletResponse(speechText, repromptText, true);
 	}
 
@@ -134,7 +168,6 @@ public class CalcLearnSpeechlet implements Speechlet {
 					= String.format("%s, wieviel ist %s", name, excercise);
 			repromptText
 					= String.format("Bitte sage mir was %s ist, indem du sagst: die Antwort ist ", excercise);
-
 		} else {
 			// Render an error since we don't know what the users favorite color is.
 			speechText = "Ich kenne deinen Namen leider nicht. Bitte sage deshalb, Mein Name ist Uwe.";
@@ -190,6 +223,7 @@ public class CalcLearnSpeechlet implements Speechlet {
 		final int answer = Integer.valueOf(numberSlot.getValue());
 		final int lastResult = (int) session.getAttribute(LAST_RESULT);
 		final String lastExcercise = (String) session.getAttribute(LAST_EXERCISE);
+		//ToDo: Integer.equals https://stackoverflow.com/questions/3637936/java-integer-equals-vs
 		if (answer == lastResult) {
 			speechText
 					= String.format("Richtig. %s macht %s. Noch ein Spiel?", lastExcercise, answer);
